@@ -1,16 +1,23 @@
 #include "bptree.h"
 
 #include <iostream>
+#include <list>
 #include <string>
 
 int main()
 {
-    BPTree<std::string, std::string> tree;
-    std::string line;
-    while (std::getline(std::cin, line)) {
-        tree.insert(line, line + line);
-    }
-    for (const auto & [key, value] : tree) {
-        std::cout << key << " => " << value << "\n";
-    }
+    BPTree<int, std::string> tree;
+    tree.insert(11, "11");
+    tree.insert(12, "12");
+    tree.insert(13, "13");
+    tree.print();
+    auto it = tree.erase(tree.find(12));
+    auto it2 = tree.find(13);
+    std::cout << it->first << " " << it->second << std::endl;
+    std::cout << it2->first << " " << it2->second << std::endl;
+    tree.print();
+    tree.erase(tree.find_const(11));
+    tree.print();
+    tree.erase(tree.find_const(13));
+    tree.print();
 }
