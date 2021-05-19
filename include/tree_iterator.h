@@ -32,26 +32,15 @@ public:
     {
         end(curr, pos);
     }
+
     void end(Node<Key, Value, Less> & node, const size_t n)
     {
         auto * res = dynamic_cast<Leaf<Key, Value, Less> *>(&node);
         if (n == res->size) {
-            tree_iterator::curr = dynamic_cast<Leaf<Key, Value, Less> *>(res->right);
-            tree_iterator::pos = 0;
+            curr = dynamic_cast<Leaf<Key, Value, Less> *>(res->right);
+            pos = 0;
         }
     };
-
-    /*tree_iterator(const tree_iterator & iter)
-        : curr(iter.curr)
-        , pos(iter.pos)
-    {
-    }
-
-    tree_iterator(tree_iterator<Key,Value,Less, false> & iter)
-            : curr(iter.curr)
-            , pos(iter.pos)
-    {
-    }*/
 
     tree_iterator & operator++()
     {
@@ -78,11 +67,6 @@ public:
     std::size_t position() const
     {
         return pos;
-    }
-
-    auto node()
-    {
-        return curr;
     }
 
     type & operator*()

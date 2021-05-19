@@ -4,14 +4,15 @@
 #include "tree_iterator.h"
 
 #include <functional>
+#include <map>
 #include <set>
 
 template <class Key, class Value, class Less = std::less<Key>>
 class BPTree
 {
-    static constexpr std::size_t block_size = 4096; //поставить обратно
 
 public:
+    static constexpr std::size_t block_size = 4096;
     using key_type = Key;
     using mapped_type = Value;
     using value_type = std::pair<const Key, Value>;
@@ -21,16 +22,14 @@ public:
     using const_pointer = const value_type *;
     using size_type = std::size_t;
 
-    using iterator = tree_iterator<Key, Value, Less, false>;      // убрать
-    using const_iterator = tree_iterator<Key, Value, Less, true>; // убрать
+    using iterator = tree_iterator<Key, Value, Less, false>;
+    using const_iterator = tree_iterator<Key, Value, Less, true>;
 
     BPTree()
         : size_value(0)
         , root(new Leaf<Key, Value, Less>)
         , first_leaf(dynamic_cast<Leaf<Key, Value, Less> *>(root))
     {
-        std::cout << "Max leaf size: " << Leaf<Key, Value, Less>::max_size << std::endl;
-        std::cout << "Max inner size: " << Inner_node<Key, Value, Less>::max_size << std::endl;
     }
 
     BPTree(std::initializer_list<std::pair<const Key, Value>> list)
@@ -42,8 +41,6 @@ public:
         for (auto i = res_list.begin(); i != res_list.end(); ++i) {
             this->insert(i->first, i->second);
         }
-        std::cout << "Max leaf size: " << Leaf<Key, Value, Less>::max_size << std::endl;
-        std::cout << "Max inner size: " << Inner_node<Key, Value, Less>::max_size << std::endl;
     }
 
     BPTree(const BPTree & tree)
@@ -51,8 +48,6 @@ public:
         , root(tree.root)
         , first_leaf(tree.first_leaf)
     {
-        std::cout << "Max leaf size: " << Leaf<Key, Value, Less>::max_size << std::endl;
-        std::cout << "Max inner size: " << Inner_node<Key, Value, Less>::max_size << std::endl;
     }
 
     BPTree(BPTree && tree)
@@ -60,10 +55,7 @@ public:
         , root(tree.root)
         , first_leaf(tree.first_leaf)
     {
-        std::cout << "Max leaf size: " << Leaf<Key, Value, Less>::max_size << std::endl;
-        std::cout << "Max inner size: " << Inner_node<Key, Value, Less>::max_size << std::endl;
     }
-    //BPTree();
 
     iterator begin()
     {
@@ -107,21 +99,16 @@ public:
 
     void clear()
     {
-        ~BPTree(); // переделать
-        BPTree();
+        ~BPTree();
+        this = new BPTree();
     }
 
     const_iterator find(const Key & key) const
     {
-        const auto res = root->lower(key);
-        //const Leaf<Key,Value,Less> * res2 = dynamic_cast<Leaf<Key,Value,Less>*>(res.first);
-        /*for (int i = 0; i < res.first.size; ++i) {
-            std::cout << ": " << res.first.data[i].first << std::endl;
-        }*/
-        const auto res2 = dynamic_cast<Leaf<Key, Value, Less> &>(res.first);
-        //std::cout << dynamic_cast<Leaf<Key,Value,Less>*>(&res.first)->data[res.second].first << " " << res.second << std::endl;
-        if (res2.data.at(res.second).first == key) {
-            return const_iterator(res.first, res.second);
+        const auto pair = root->lower(key);
+        const auto leaf = dynamic_cast<Leaf<Key, Value, Less> &>(pair.first);
+        if (leaf[pair.second].first == key) {
+            return const_iterator(pair.first, pair.second);
         }
         else {
             return cend();
@@ -130,15 +117,10 @@ public:
 
     iterator find(const Key & key)
     {
-        const auto res = root->lower(key);
-        //const Leaf<Key,Value,Less> * res2 = dynamic_cast<Leaf<Key,Value,Less>*>(res.first);
-        /*for (int i = 0; i < res.first.size; ++i) {
-            std::cout << ": " << res.first.data[i].first << std::endl;
-        }*/
-        const auto res2 = dynamic_cast<Leaf<Key, Value, Less> &>(res.first);
-        //std::cout << dynamic_cast<Leaf<Key,Value,Less>*>(&res.first)->data[res.second].first << " " << res.second << std::endl;
-        if (res2.data.at(res.second).first == key) {
-            return iterator(res.first, res.second);
+        const auto pair = root->lower(key);
+        const auto leaf = dynamic_cast<Leaf<Key, Value, Less> &>(pair.first);
+        if (leaf[pair.second].first == key) {
+            return iterator(pair.first, pair.second);
         }
         else {
             return end();
@@ -147,15 +129,10 @@ public:
 
     const_iterator find_const(const Key & key) const
     {
-        const auto res = root->lower(key);
-        //const Leaf<Key,Value,Less> * res2 = dynamic_cast<Leaf<Key,Value,Less>*>(res.first);
-        /*for (int i = 0; i < res.first.size; ++i) {
-            std::cout << ": " << res.first.data[i].first << std::endl;
-        }*/
-        const auto res2 = dynamic_cast<Leaf<Key, Value, Less> &>(res.first);
-        //std::cout << dynamic_cast<Leaf<Key,Value,Less>*>(&res.first)->data[res.second].first << " " << res.second << std::endl;
-        if (res2.data.at(res.second).first == key) {
-            return const_iterator(res.first, res.second);
+        const auto pair = root->lower(key);
+        const auto leaf = dynamic_cast<Leaf<Key, Value, Less> &>(pair.first);
+        if (leaf[pair.second].first == key) {
+            return const_iterator(pair.first, pair.second);
         }
         else {
             return cend();
@@ -174,7 +151,6 @@ public:
 
     bool contains(const Key & key) const
     {
-        //std::cout << "FFFFFF: " << find_const(key)->first << " " << std::endl;
         if (!(find_const(key) == end())) {
             return find_const(key)->first == key;
         }
@@ -239,7 +215,6 @@ public:
     {
         auto res = find(key);
         if (res == end()) {
-            //auto res2 = insert(key, 0).first;
             return (insert(key, Value()).first)->second;
         }
         return res->second;
@@ -254,7 +229,7 @@ public:
         return res->second;
     }
 
-    using iter = typename std::initializer_list<std::pair<Key, Value>>::const_iterator;
+    template <class iter>
     std::pair<iter, bool> insert(iter start, iter end)
     {
         for (auto i = start; i != end; i++) {
@@ -275,7 +250,6 @@ public:
 
     std::pair<iterator, bool> insert(const Key & key, Value && value)
     {
-
         const auto res = root->insert(root, std::pair<Key, Value>(key, std::move(value)));
         root = std::get<0>(res);
         if (std::get<3>(res)) {
@@ -308,30 +282,40 @@ public:
 
     iterator erase(const_iterator it)
     {
-        auto res = root->erase(root, it);
-        root = res.second;
-        size_value--;
-        return res.first;
+        if (it != cend()) {
+            auto res = root->erase(root, it);
+            root = std::get<1>(res);
+            size_value--;
+            deleted_set.insert(std::get<2>(res));
+            return std::get<0>(res);
+        }
+        else {
+            return end();
+        }
     }
 
     iterator erase(iterator it)
     {
-        auto res = root->erase(root, it);
-        root = res.second;
-        size_value--;
-        return res.first;
+        if (it != end()) {
+            auto res = root->erase(root, it);
+            root = std::get<1>(res);
+            size_value--;
+            deleted_set.insert(std::get<2>(res));
+            return std::get<0>(res);
+        }
+        else {
+            return end();
+        }
     }
 
     iterator erase(const_iterator begin, const_iterator end)
     {
         iterator res;
-        //std::size_t pos = std::distance(begin, end);
-        std::set<Key> set;
+        std::set<Key> key_set;
         for (auto j = begin; j != end; ++j) {
-            set.insert(j->first);
+            key_set.insert(j->first);
         }
-
-        for (auto j = set.begin(); j != set.end(); ++j) {
+        for (auto j = key_set.begin(); j != key_set.end(); ++j) {
             res = erase(find_const(*j));
         }
         return res;
@@ -342,8 +326,9 @@ public:
         const_iterator f = find_const(key);
         if (f != cend()) {
             auto res = root->erase(root, f);
-            root = res.second;
+            root = std::get<1>(res);
             size_value--;
+            deleted_set.insert(std::get<2>(res));
             return 1;
         }
         else {
@@ -351,25 +336,27 @@ public:
         }
     }
 
-    static constexpr size_type get_block_size()
-    {
-        return block_size;
-    }
-
     ~BPTree()
     {
-        if (first_leaf != root) {
-            delete root;
+        deleted_set.insert(root);
+        deleted_set.insert(first_leaf);
+        delete_tree(first_leaf, deleted_set);
+        for (auto item : deleted_set) {
+            delete item;
         }
-        delete_tree(first_leaf);
     }
 
-    void delete_tree(Leaf<Key, Value, Less> * tree)
+    void delete_tree(Leaf<Key, Value, Less> * tree, std::set<Node<Key, Value> *> & set)
     {
         if (tree->right != nullptr) {
-            delete_tree(tree->right);
+            auto res = tree->parent;
+            while (res != nullptr) {
+                set.insert(res);
+                res = res->parent;
+            }
+            delete_tree(tree->right, set);
         }
-        delete tree;
+        set.insert(tree);
     }
 
     void print()
@@ -382,4 +369,5 @@ private:
     size_t size_value;
     Node<Key, Value, Less> * root;
     Leaf<Key, Value, Less> * first_leaf;
+    std::set<Node<Key, Value> *> deleted_set;
 };
