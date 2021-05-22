@@ -151,8 +151,9 @@ public:
 
     bool contains(const Key & key) const
     {
-        if (!(find_const(key) == end())) {
-            return find_const(key)->first == key;
+        auto res = find_const(key);
+        if (!(res == end())) {
+            return res->first == key;
         }
         else {
             return false;
@@ -213,11 +214,7 @@ public:
     // '[]' operator inserts a new element if there is no such key
     Value & operator[](const Key & key)
     {
-        auto res = find(key);
-        if (res == end()) {
-            return (insert(key, Value()).first)->second;
-        }
-        return res->second;
+        return (insert(key, Value()).first)->second;
     }
 
     Value & operator[](Key && key)
@@ -260,12 +257,12 @@ public:
 
     std::pair<iterator, bool> insert(Key && key, Value && value)
     {
-        const std::tuple<Node<Key, Value, Less> *, Node<Key, Value, Less> &, size_t, bool> res = root->insert(root,
-                                                                                                              std::pair<Key, Value>(
-                                                                                                                      std::move(
-                                                                                                                              key),
-                                                                                                                      std::move(
-                                                                                                                              value)));
+        const auto res = root->insert(root,
+                                      std::pair<Key, Value>(
+                                              std::move(
+                                                      key),
+                                              std::move(
+                                                      value)));
         root = std::get<0>(res);
         if (std::get<3>(res)) {
             size_value++;

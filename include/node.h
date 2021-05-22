@@ -43,14 +43,14 @@ public:
 
     virtual void print() = 0;
 
-    virtual void new_parent(Node * new_parent) = 0;
+    virtual void new_parent(Inner_node<Key, Value, Less> * new_parent) = 0;
 
     virtual std::tuple<iterator, Node *, Node *> erase(Node * root, const_iterator it) = 0;
 
     virtual std::tuple<iterator, Node *, Node *> erase(Node * root, iterator it) = 0;
 
     size_t size = 0;
-    Node * parent = nullptr;
+    Inner_node<Key, Value, Less> * parent = nullptr;
     Leaf<Key, Value, Less> * right = nullptr;
     static constexpr std::size_t max_size =
             (BPTree<Key, Value, Less>::block_size - sizeof(size) - sizeof(parent) - sizeof(right)) /
@@ -121,7 +121,7 @@ public:
         if (i == size || it->first != value.first) {
 
             if (i == 0) {
-                auto res = dynamic_cast<Inner_node<Key, Value, Less> *>(parent);
+                auto res = parent;
                 while (res != nullptr) {
                     auto it2 = std::lower_bound(res->data.begin(), res->data.begin() + res->size, value, [](const auto & ihs, const auto & rhs) {
                         return ihs.first < rhs.first;
@@ -130,7 +130,7 @@ public:
                     it2->first = value.first;
 
                     if (it2 - res->data.begin() == 0) {
-                        res = dynamic_cast<Inner_node<Key, Value, Less> *>(res->parent);
+                        res = res->parent;
                     }
                     else {
                         res = nullptr;
@@ -275,7 +275,7 @@ public:
                     std::move(data.begin(), data.begin() + (new_size - node1->size), node1->data.begin());
                 }
 
-                auto res = dynamic_cast<Inner_node<Key, Value, Less> *>(parent);
+                auto res = parent;
                 while (res != nullptr) {
                     auto it2 = std::lower_bound(res->data.begin(), res->data.begin() + res->size, key2, [](const auto & ihs, const auto & rhs) {
                         return ihs.first < rhs;
@@ -284,7 +284,7 @@ public:
                     it2->first = node1->data[0].first;
 
                     if (it2 - res->data.begin() == 0) {
-                        res = dynamic_cast<Inner_node<Key, Value, Less> *>(res->parent);
+                        res = res->parent;
                     }
                     else {
                         res = nullptr;
@@ -305,7 +305,7 @@ public:
                 deleted = node1;
 
                 if (parent != nullptr && parent == root &&
-                    dynamic_cast<Inner_node<Key, Value, Less> *>(parent)->size == 1) {
+                    parent->size == 1) {
                     return {root, deleted};
                 }
 
@@ -321,12 +321,12 @@ public:
         }
         else {
             if (parent != nullptr && parent == root &&
-                dynamic_cast<Inner_node<Key, Value, Less> *>(parent)->size == 1) {
+                parent->size == 1) {
                 return {root, deleted};
             }
 
             if (parent != nullptr) {
-                auto res = dynamic_cast<Inner_node<Key, Value, Less> *>(parent);
+                auto res = parent;
                 if (res->size > 1) {
                     const auto rend = std::make_reverse_iterator(res->data.begin());
                     const auto it2 = std::lower_bound(std::make_reverse_iterator(res->data.begin() + res->size), rend, data[0], [](const auto & lts, const auto & rhs) {
@@ -350,13 +350,13 @@ public:
         }
     }
 
-    void new_parent(Node * new_parent) override
+    void new_parent(Inner_node<Key, Value, Less> * new_parent) override
     {
         this->parent = new_parent;
     }
 
     std::size_t size;
-    Node * parent = nullptr;
+    Inner_node<Key, Value, Less> * parent = nullptr;
     Leaf<Key, Value, Less> * right = nullptr;
     static constexpr std::size_t max_size =
             (BPTree<Key, Value, Less>::block_size - sizeof(size) - sizeof(parent) - sizeof(right)) /
@@ -621,7 +621,7 @@ public:
                     std::move(data.begin(), data.begin() + (new_size - node1->size), node1->data.begin());
                 }
 
-                auto res = dynamic_cast<Inner_node<Key, Value, Less> *>(parent);
+                auto res = parent;
                 while (res != nullptr) {
                     auto it2 = std::lower_bound(res->data.begin(), res->data.begin() + res->size, key2, [](const auto & ihs, const auto & rhs) {
                         return ihs.first < rhs;
@@ -630,7 +630,7 @@ public:
                     it2->first = node1->data[0].first;
 
                     if (it2 - res->data.begin() == 0) {
-                        res = dynamic_cast<Inner_node<Key, Value, Less> *>(res->parent);
+                        res = res->parent;
                     }
                     else {
                         res = nullptr;
@@ -650,7 +650,7 @@ public:
                 deleted = node1;
 
                 if (parent != nullptr && parent == root &&
-                    dynamic_cast<Inner_node<Key, Value, Less> *>(parent)->size == 1) {
+                    parent->size == 1) {
                     return {root, deleted};
                 }
 
@@ -666,12 +666,12 @@ public:
         }
         else {
             if (parent != nullptr && parent == root &&
-                dynamic_cast<Inner_node<Key, Value, Less> *>(parent)->size == 1) {
+                parent->size == 1) {
                 return {root, deleted};
             }
 
             if (parent != nullptr) {
-                auto res = dynamic_cast<Inner_node<Key, Value, Less> *>(parent);
+                auto res = parent;
                 if (res->size > 1) {
                     const auto rend = std::make_reverse_iterator(res->data.begin());
                     const auto it2 = std::lower_bound(std::make_reverse_iterator(res->data.begin() + res->size), rend, data[0], [](const auto & lts, const auto & rhs) {
@@ -687,13 +687,13 @@ public:
         return {root, deleted};
     }
 
-    void new_parent(Node * new_parent) override
+    void new_parent(Inner_node<Key, Value, Less> * new_parent) override
     {
         this->parent = new_parent;
     }
 
     std::size_t size;
-    Node * parent = nullptr;
+    Inner_node<Key, Value, Less> * parent = nullptr;
     static constexpr std::size_t max_size =
             (BPTree<Key, Value, Less>::block_size - sizeof(size) - sizeof(parent)) / sizeof(std::pair<Key, Node *>);
     std::array<std::pair<Key, Node *>, max_size> data;
