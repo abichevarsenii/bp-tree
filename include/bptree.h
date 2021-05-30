@@ -33,9 +33,7 @@ public:
     }
 
     BPTree(std::initializer_list<std::pair<const Key, Value>> list)
-        : size_value(0)
-        , root(new Leaf<Key, Value, Less>)
-        , first_leaf(dynamic_cast<Leaf<Key, Value, Less> *>(root))
+        : BPTree()
     {
         auto res_list = list;
         for (auto i = res_list.begin(); i != res_list.end(); ++i) {
@@ -44,17 +42,47 @@ public:
     }
 
     BPTree(const BPTree & tree)
-        : size_value(tree.size_value)
-        , root(tree.root)
-        , first_leaf(tree.first_leaf)
+        : BPTree()
     {
+        for (auto i = tree.begin(); i != tree.end(); ++i) {
+            this->insert(i->first, i->second);
+        }
+    }
+
+    BPTree & operator=(const BPTree & tree)
+    {
+        this->clear();
+        for (auto i = tree.begin(); i != tree.end(); ++i) {
+            this->insert(i->first, i->second);
+        }
+        return *this;
+    }
+
+    BPTree & operator=(BPTree && tree)
+    {
+        this->clear();
+        delete root;
+        this->size_value = tree.size_value;
+        this->root = tree.root;
+        this->first_leaf = tree.first_leaf;
+        this->deleted_set = std::move(tree.deleted_set);
+        tree.deleted_set = std::set<Node<Key, Value> *>();
+        tree.size_value = 0;
+        tree.root = new Leaf<Key, Value, Less>;
+        tree.first_leaf = dynamic_cast<Leaf<Key, Value, Less> *>(this->root);
+        return *this;
     }
 
     BPTree(BPTree && tree)
-        : size_value(tree.size_value)
-        , root(tree.root)
-        , first_leaf(tree.first_leaf)
     {
+        this->size_value = tree.size_value;
+        this->root = tree.root;
+        this->first_leaf = tree.first_leaf;
+        this->deleted_set = std::move(tree.deleted_set);
+        tree.deleted_set = std::set<Node<Key, Value> *>();
+        tree.size_value = 0;
+        tree.root = new Leaf<Key, Value, Less>;
+        tree.first_leaf = dynamic_cast<Leaf<Key, Value, Less> *>(this->root);
     }
 
     iterator begin()
@@ -99,44 +127,44 @@ public:
 
     void clear()
     {
-        ~BPTree();
-        this = new BPTree();
+        this->deleted_set.insert(this->root);
+        this->deleted_set.insert(this->first_leaf);
+        delete_tree(this->first_leaf, this->deleted_set);
+        this->size_value = 0;
+        this->root = new Leaf<Key, Value, Less>();
+        this->first_leaf = dynamic_cast<Leaf<Key, Value, Less> *>(this->root);
+        for (auto item : this->deleted_set) {
+            delete item;
+        }
+        this->deleted_set = std::set<Node<Key, Value> *>();
+    }
+
+    template <class T>
+    T find_impl(const Key & key) const
+    {
+        const auto pair = root->lower(key);
+        const auto leaf = dynamic_cast<Leaf<Key, Value, Less> &>(pair.first);
+        if (leaf[pair.second].first == key) {
+            return T(pair.first, pair.second);
+        }
+        else {
+            return T();
+        }
     }
 
     const_iterator find(const Key & key) const
     {
-        const auto pair = root->lower(key);
-        const auto leaf = dynamic_cast<Leaf<Key, Value, Less> &>(pair.first);
-        if (leaf[pair.second].first == key) {
-            return const_iterator(pair.first, pair.second);
-        }
-        else {
-            return cend();
-        }
+        return find_impl<const_iterator>(key);
     }
 
     iterator find(const Key & key)
     {
-        const auto pair = root->lower(key);
-        const auto leaf = dynamic_cast<Leaf<Key, Value, Less> &>(pair.first);
-        if (leaf[pair.second].first == key) {
-            return iterator(pair.first, pair.second);
-        }
-        else {
-            return end();
-        }
+        return find_impl<iterator>(key);
     }
 
     const_iterator find_const(const Key & key) const
     {
-        const auto pair = root->lower(key);
-        const auto leaf = dynamic_cast<Leaf<Key, Value, Less> &>(pair.first);
-        if (leaf[pair.second].first == key) {
-            return const_iterator(pair.first, pair.second);
-        }
-        else {
-            return cend();
-        }
+        return find_impl<const_iterator>(key);
     }
 
     size_type count(const Key & key) const
@@ -208,7 +236,13 @@ public:
 
     const Value & at(const Key & key) const
     {
-        return find_const(key)->second;
+        auto res = find_const(key);
+        if (res == end()) {
+            throw std::out_of_range("");
+        }
+        else {
+            return res->second;
+        }
     }
 
     // '[]' operator inserts a new element if there is no such key
@@ -219,18 +253,14 @@ public:
 
     Value & operator[](Key && key)
     {
-        auto res = find(key);
-        if (res == end()) {
-            return (insert(key, Value()).first)->second;
-        }
-        return res->second;
+        return (insert(key, Value()).first)->second;
     }
 
     template <class iter>
     std::pair<iter, bool> insert(iter start, iter end)
     {
         for (auto i = start; i != end; i++) {
-            insert((*i).first, (*i).second);
+            insert(i->first, i->second);
         }
         return {start, true};
     }
@@ -247,7 +277,7 @@ public:
 
     std::pair<iterator, bool> insert(const Key & key, Value && value)
     {
-        const auto res = root->insert(root, std::pair<Key, Value>(key, std::move(value)));
+        const auto res = root->insert_move(root, std::pair<Key, Value>(key, std::move(value)));
         root = std::get<0>(res);
         if (std::get<3>(res)) {
             size_value++;
@@ -257,12 +287,12 @@ public:
 
     std::pair<iterator, bool> insert(Key && key, Value && value)
     {
-        const auto res = root->insert(root,
-                                      std::pair<Key, Value>(
-                                              std::move(
-                                                      key),
-                                              std::move(
-                                                      value)));
+        const auto res = root->insert_move(root,
+                                           std::pair<Key, Value>(
+                                                   std::move(
+                                                           key),
+                                                   std::move(
+                                                           value)));
         root = std::get<0>(res);
         if (std::get<3>(res)) {
             size_value++;
@@ -341,10 +371,14 @@ public:
         for (auto item : deleted_set) {
             delete item;
         }
+        this->deleted_set = std::set<Node<Key, Value> *>();
     }
 
     void delete_tree(Leaf<Key, Value, Less> * tree, std::set<Node<Key, Value> *> & set)
     {
+        if (tree == nullptr) {
+            return;
+        }
         if (tree->right != nullptr) {
             auto res = tree->parent;
             while (res != nullptr) {
@@ -358,7 +392,9 @@ public:
 
     void print()
     {
-        std::cout << "Tree:";
+        std::cout << "Tree: " << std::endl;
+        std::cout << "Root: " << root << std::endl;
+        std::cout << "First Leaf: " << first_leaf << std::endl;
         root->print();
     }
 

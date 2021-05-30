@@ -37,6 +37,8 @@ public:
 
     virtual std::tuple<Node *, Node &, std::size_t, bool> insert(Node * root, const std::pair<Key, Value> & value) = 0;
 
+    virtual std::tuple<Node *, Node &, std::size_t, bool> insert_move(Node * root, std::pair<Key, Value> && value) = 0;
+
     virtual Node * split(Node * root) = 0;
 
     virtual std::pair<Node *, Node *> merge(Node * root) = 0;
@@ -64,6 +66,7 @@ class Leaf : public Node<Key, Value>
     using Node = Node<Key, Value>;
     using iterator = tree_iterator<Key, Value, Less, false>;
     using const_iterator = tree_iterator<Key, Value, Less, true>;
+    using pair = std::pair<Node &, std::size_t>;
 
 public:
     Leaf()
@@ -78,28 +81,28 @@ public:
         return parent->push(root, key, std::move(new_child));
     }
 
-    std::pair<Node &, std::size_t> lower(const Key & key) override
+    pair lower(const Key & key) override
     {
         const auto it = std::lower_bound(data.begin(), data.begin() + size, key, [](const auto & ihs, const auto & rhs) {
             return ihs.first < rhs;
         });
         const std::size_t i = it - data.begin();
         if (i < size) {
-            return std::pair<Node &, std::size_t>(*this, i);
+            return pair(*this, i);
         }
-        return std::pair<Node &, std::size_t>(*this, size);
+        return pair(*this, size);
     }
 
-    std::pair<Node &, std::size_t> upper(const Key & key) override
+    pair upper(const Key & key) override
     {
         const auto it = std::upper_bound(data.begin(), data.begin() + size, key, [](const auto & ihs, const auto & rhs) {
             return ihs < rhs.first;
         });
         const std::size_t i = it - data.begin();
         if (i < size) {
-            return std::pair<Node &, std::size_t>(*this, i);
+            return pair(*this, i);
         }
-        return std::pair<Node &, std::size_t>(*this, size);
+        return pair(*this, size);
     }
 
     auto & operator[](const std::size_t i) const
@@ -141,6 +144,53 @@ public:
             std::move_backward(it, data.begin() + size, data.begin() + size + 1);
             size++;
             *it = value;
+            if (size < max_size) {
+                return {root, *this, i, true};
+            }
+            else {
+                root = split(root);
+                if (i < size) {
+                    return {root, *this, i, true};
+                }
+                else {
+                    return {root, *right, i - size, true};
+                }
+            }
+        }
+        else {
+            return {root, *this, i, false};
+        }
+    }
+
+    std::tuple<Node *, Node &, std::size_t, bool> insert_move(Node * root, std::pair<Key, Value> && value) override
+    {
+        auto it = std::lower_bound(data.begin(), data.begin() + size, value, [](const auto & ihs, const auto & rhs) {
+            return ihs.first < rhs.first;
+        });
+        const std::size_t i = it - data.begin();
+        if (i == size || it->first != value.first) {
+
+            if (i == 0) {
+                auto res = parent;
+                while (res != nullptr) {
+                    auto it2 = std::lower_bound(res->data.begin(), res->data.begin() + res->size, value, [](const auto & ihs, const auto & rhs) {
+                        return ihs.first < rhs.first;
+                    });
+
+                    it2->first = value.first;
+
+                    if (it2 - res->data.begin() == 0) {
+                        res = res->parent;
+                    }
+                    else {
+                        res = nullptr;
+                    }
+                }
+            }
+
+            std::move_backward(it, data.begin() + size, data.begin() + size + 1);
+            size++;
+            *it = std::move(value);
             if (size < max_size) {
                 return {root, *this, i, true};
             }
@@ -295,9 +345,9 @@ public:
                 node1->size = rest_size;
             }
             else {
-                auto i = size;
+                auto i = size + 1;
                 if (size > node1->size) {
-                    i = size - node1->size;
+                    i = size - node1->size + 1;
                 }
                 std::copy(node1->data.begin(), node1->data.begin() + node1->size, data.begin() + size);
                 size += node1->size;
@@ -439,6 +489,18 @@ public:
             return it->second->insert(root, value);
         }
         return data[0].second->insert(root, value);
+    }
+
+    std::tuple<Node *, Node &, std::size_t, bool> insert_move(Node * root, std::pair<Key, Value> && value) override
+    {
+        const auto rend = std::make_reverse_iterator(data.begin());
+        const auto it = std::lower_bound(std::make_reverse_iterator(data.begin() + size), rend, value, [](const auto & lts, const auto & rhs) {
+            return lts.first > rhs.first;
+        });
+        if (it != rend) {
+            return it->second->insert_move(root, std::move(value));
+        }
+        return data[0].second->insert_move(root, std::move(value));
     }
 
     Node * split(Node * root) override
